@@ -9,14 +9,18 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
 )
 
 type UserController struct {
 	userService service.UserService
+	Validate    *validator.Validate
+	trans       ut.Translator
 }
 
-func NewUserController(userService service.UserService) *UserController {
-	return &UserController{userService: userService}
+func NewUserController(userService service.UserService, validate *validator.Validate, trans ut.Translator) *UserController {
+	return &UserController{userService: userService, Validate: validate, trans: trans}
 }
 
 func (u *UserController) GetAll(ctx *gin.Context) {
@@ -35,13 +39,24 @@ func (u *UserController) GetAll(ctx *gin.Context) {
 func (u *UserController) GetById(ctx *gin.Context) {
 	userId := ctx.Param("id")
 	id, err := strconv.Atoi(userId)
-	helper.ErrorPanic(err)
+
+	if err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Invalid user ID",
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
 
 	userResponse := u.userService.GetById(uint(id))
 
 	var resp response.WebResponse
 
-	if userResponse.Id == 0 {
+	if userResponse == (response.UserResponse{}) {
 		resp = response.WebResponse{
 			Code:    http.StatusNotFound,
 			Status:  "Ok",
@@ -79,14 +94,52 @@ func (u *UserController) Delete(ctx *gin.Context) {
 
 func (u *UserController) Create(ctx *gin.Context) {
 	createUserRequest := request.UserCreateRequest{}
-	err := ctx.ShouldBindJSON(&createUserRequest)
-	helper.ErrorPanic(err)
 
-	u.userService.Create(createUserRequest)
+	if err := ctx.ShouldBindJSON(&createUserRequest); err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Campos inválidos",
+			Errors:  helper.TranslateError(err, u.trans),
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	if err := u.Validate.Struct(createUserRequest); err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Bad request",
+			Errors:  helper.TranslateError(err, u.trans),
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	err := u.userService.Create(createUserRequest)
+
+	if err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusInternalServerError,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Some error occurred, try again later!",
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
 	resp := response.WebResponse{
-		Code:   http.StatusOK,
-		Status: "Ok",
-		Data:   nil,
+		Code:    http.StatusOK,
+		Status:  "Ok",
+		Message: "User created",
+		Data:    nil,
 	}
 
 	ctx.Header("Content-Type", "application/json")
@@ -95,15 +148,63 @@ func (u *UserController) Create(ctx *gin.Context) {
 
 func (u *UserController) Update(ctx *gin.Context) {
 	updateUserRequest := request.UserUpdateRequest{}
-	err := ctx.ShouldBindJSON(&updateUserRequest)
-	helper.ErrorPanic(err)
+	if err := ctx.ShouldBindJSON(&updateUserRequest); err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Campos inválidos",
+			Errors:  helper.TranslateError(err, u.trans),
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	if err := u.Validate.Struct(updateUserRequest); err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Bad request",
+			Errors:  helper.TranslateError(err, u.trans),
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
 
 	userId := ctx.Param("id")
 	id, err := strconv.Atoi(userId)
-	helper.ErrorPanic(err)
+
+	if err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusBadRequest,
+			Status:  "Error",
+			Data:    nil,
+			Message: "Invalid user ID",
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
 	updateUserRequest.Id = uint(id)
 
-	u.userService.Update(updateUserRequest)
+	err = u.userService.Update(updateUserRequest)
+
+	if err != nil {
+		resp := response.WebResponse{
+			Code:    http.StatusNotFound,
+			Status:  "Error",
+			Data:    nil,
+			Message: err.Error(),
+		}
+		ctx.Header("Content-Type", "application/json")
+		ctx.JSON(http.StatusNotFound, resp)
+		return
+	}
+
 	resp := response.WebResponse{
 		Code:   http.StatusOK,
 		Status: "Ok",

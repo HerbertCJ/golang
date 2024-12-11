@@ -5,7 +5,6 @@ import (
 	"crud-postgres-orm/helper"
 
 	"crud-postgres-orm/model"
-	"errors"
 
 	"gorm.io/gorm"
 )
@@ -35,10 +34,10 @@ func (u *UserRepositoryImpl) GetById(id uint) (model.User, error) {
 	var user model.User
 	result := u.Db.First(&user, id)
 
-	if result != nil {
-		return user, nil
+	if result.Error != nil {
+		return model.User{}, result.Error
 	} else {
-		return user, errors.New("user not found")
+		return user, nil
 	}
 }
 

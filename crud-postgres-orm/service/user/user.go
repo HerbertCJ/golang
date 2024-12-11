@@ -3,11 +3,12 @@ package service
 import (
 	"crud-postgres-orm/data/request"
 	"crud-postgres-orm/data/response"
-	"crud-postgres-orm/helper"
 	"crud-postgres-orm/model"
 	repository "crud-postgres-orm/repository/user"
+	"errors"
 
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 type UserServiceImpl struct {
@@ -22,15 +23,20 @@ func NewUserServiceImpl(userRepository repository.UserRepository, validate *vali
 	}
 }
 
-func (u *UserServiceImpl) Create(user request.UserCreateRequest) {
+func (u *UserServiceImpl) Create(user request.UserCreateRequest) error {
 	err := u.Validate.Struct(user)
-	helper.ErrorPanic(err)
+
+	if err != nil {
+		return err
+	}
+
 	userModel := model.User{
 		Username: user.Username,
 		Email:    user.Email,
 	}
 
 	u.UserRepository.Create(userModel)
+	return nil
 }
 
 func (u *UserServiceImpl) Delete(id uint) {
@@ -55,7 +61,10 @@ func (u *UserServiceImpl) GetAll() []response.UserResponse {
 
 func (u *UserServiceImpl) GetById(id uint) response.UserResponse {
 	user, err := u.UserRepository.GetById(id)
-	helper.ErrorPanic(err)
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return response.UserResponse{}
+	}
 
 	userResponse := response.UserResponse{
 		Id:       user.Id,
@@ -66,9 +75,12 @@ func (u *UserServiceImpl) GetById(id uint) response.UserResponse {
 	return userResponse
 }
 
-func (u *UserServiceImpl) Update(user request.UserUpdateRequest) {
+func (u *UserServiceImpl) Update(user request.UserUpdateRequest) error {
 	_, err := u.UserRepository.GetById(user.Id)
-	helper.ErrorPanic(err)
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errors.New("user not found")
+	}
 
 	userModel := model.User{
 		Id:       user.Id,
@@ -77,4 +89,5 @@ func (u *UserServiceImpl) Update(user request.UserUpdateRequest) {
 	}
 
 	u.UserRepository.Update(userModel)
+	return nil
 }
