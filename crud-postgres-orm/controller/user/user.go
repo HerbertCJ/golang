@@ -52,14 +52,14 @@ func (u *UserController) GetById(ctx *gin.Context) {
 		return
 	}
 
-	userResponse := u.userService.GetById(uint(id))
+	userResponse, err := u.userService.GetById(uint(id))
 
 	var resp response.WebResponse
 
-	if userResponse == (response.UserResponse{}) {
+	if err != nil {
 		resp = response.WebResponse{
 			Code:    http.StatusNotFound,
-			Status:  "Ok",
+			Status:  "Error",
 			Data:    nil,
 			Message: "User not found",
 		}
@@ -189,9 +189,7 @@ func (u *UserController) Update(ctx *gin.Context) {
 		return
 	}
 
-	updateUserRequest.Id = uint(id)
-
-	err = u.userService.Update(updateUserRequest)
+	err = u.userService.Update(updateUserRequest, uint(id))
 
 	if err != nil {
 		resp := response.WebResponse{

@@ -7,8 +7,8 @@ import (
 
 type UserService interface {
 	GetAll() []response.UserResponse
-	GetById(id uint) response.UserResponse
+	GetById(id uint) (response.UserResponse, error)
 	Delete(id uint)
 	Create(user request.UserCreateRequest) error
-	Update(user request.UserUpdateRequest) error
+	Update(user request.UserUpdateRequest, id uint) error
 }

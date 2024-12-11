@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"github.com/go-playground/validator/v10"
-	"gorm.io/gorm"
 )
 
 type UserServiceImpl struct {
@@ -59,11 +58,11 @@ func (u *UserServiceImpl) GetAll() []response.UserResponse {
 	return users
 }
 
-func (u *UserServiceImpl) GetById(id uint) response.UserResponse {
+func (u *UserServiceImpl) GetById(id uint) (response.UserResponse, error) {
 	user, err := u.UserRepository.GetById(id)
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return response.UserResponse{}
+	if err != nil {
+		return response.UserResponse{}, err
 	}
 
 	userResponse := response.UserResponse{
@@ -72,18 +71,18 @@ func (u *UserServiceImpl) GetById(id uint) response.UserResponse {
 		Email:    user.Email,
 	}
 
-	return userResponse
+	return userResponse, nil
 }
 
-func (u *UserServiceImpl) Update(user request.UserUpdateRequest) error {
-	_, err := u.UserRepository.GetById(user.Id)
+func (u *UserServiceImpl) Update(user request.UserUpdateRequest, id uint) error {
+	_, err := u.UserRepository.GetById(id)
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return errors.New("user not found")
 	}
 
 	userModel := model.User{
-		Id:       user.Id,
+		Id:       id,
 		Username: user.Username,
 		Email:    user.Email,
 	}

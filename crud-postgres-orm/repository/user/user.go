@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"crud-postgres-orm/data/request"
 	"crud-postgres-orm/helper"
+	"errors"
 
 	"crud-postgres-orm/model"
 
@@ -35,6 +35,10 @@ func (u *UserRepositoryImpl) GetById(id uint) (model.User, error) {
 	result := u.Db.First(&user, id)
 
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return model.User{}, errors.New("user not found")
+		}
+
 		return model.User{}, result.Error
 	} else {
 		return user, nil
@@ -47,11 +51,6 @@ func (u *UserRepositoryImpl) Create(user model.User) {
 }
 
 func (u *UserRepositoryImpl) Update(user model.User) {
-	var updateUser = request.UserUpdateRequest{
-		Id:       user.Id,
-		Email:    user.Email,
-		Username: user.Username,
-	}
-	result := u.Db.Model(&user).Updates(updateUser)
+	result := u.Db.Model(&user).Updates(user)
 	helper.ErrorPanic(result.Error)
 }
