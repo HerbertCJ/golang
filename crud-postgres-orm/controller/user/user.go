@@ -26,14 +26,9 @@ func NewUserController(userService service.UserService, validate *validator.Vali
 func (u *UserController) GetAll(ctx *gin.Context) {
 	usersResponse := u.userService.GetAll()
 
-	resp := response.WebResponse{
-		Code:   http.StatusOK,
-		Status: "Ok",
-		Data:   usersResponse,
-	}
-
+	resp := helper.WebResponseFormatter(http.StatusOK, "Ok", usersResponse, "Users found", nil)
 	ctx.Header("Content-Type", "application/json")
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(resp.Code, resp)
 }
 
 func (u *UserController) GetById(ctx *gin.Context) {
@@ -41,38 +36,23 @@ func (u *UserController) GetById(ctx *gin.Context) {
 	id, err := strconv.Atoi(userId)
 
 	if err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Invalid user ID",
-		}
+		resp := helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Invalid user ID", nil)
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
 	userResponse, err := u.userService.GetById(uint(id))
 
 	var resp response.WebResponse
-
 	if err != nil {
-		resp = response.WebResponse{
-			Code:    http.StatusNotFound,
-			Status:  "Error",
-			Data:    nil,
-			Message: "User not found",
-		}
+		resp = helper.WebResponseFormatter(http.StatusNotFound, "Error", nil, "User not found", nil)
 	} else {
-		resp = response.WebResponse{
-			Code:   http.StatusOK,
-			Status: "Ok",
-			Data:   userResponse,
-		}
+		resp = helper.WebResponseFormatter(http.StatusOK, "Ok", userResponse, "User found", nil)
 	}
 
 	ctx.Header("Content-Type", "application/json")
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(resp.Code, resp)
 }
 
 func (u *UserController) Delete(ctx *gin.Context) {
@@ -82,95 +62,59 @@ func (u *UserController) Delete(ctx *gin.Context) {
 
 	u.userService.Delete(uint(id))
 
-	resp := response.WebResponse{
-		Code:   http.StatusOK,
-		Status: "Ok",
-		Data:   nil,
-	}
+	resp := helper.WebResponseFormatter(http.StatusOK, "Ok", nil, "User deleted", nil)
 
 	ctx.Header("Content-Type", "application/json")
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(resp.Code, resp)
 }
 
 func (u *UserController) Create(ctx *gin.Context) {
+	var resp response.WebResponse
 	createUserRequest := request.UserCreateRequest{}
 
 	if err := ctx.ShouldBindJSON(&createUserRequest); err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Campos inválidos",
-			Errors:  helper.TranslateError(err, u.trans),
-		}
+		resp = helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Campos inválidos", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
 	if err := u.Validate.Struct(createUserRequest); err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Bad request",
-			Errors:  helper.TranslateError(err, u.trans),
-		}
+		resp = helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Bad request", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
 	err := u.userService.Create(createUserRequest)
 
 	if err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusInternalServerError,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Some error occurred, try again later!",
-		}
+		resp = helper.WebResponseFormatter(http.StatusInternalServerError, "Error", nil, "Some error occurred, try again later!", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
-	resp := response.WebResponse{
-		Code:    http.StatusOK,
-		Status:  "Ok",
-		Message: "User created",
-		Data:    nil,
-	}
-
+	resp = helper.WebResponseFormatter(http.StatusOK, "Ok", nil, "User created", helper.TranslateError(err, u.trans))
 	ctx.Header("Content-Type", "application/json")
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(resp.Code, resp)
 }
 
 func (u *UserController) Update(ctx *gin.Context) {
 	updateUserRequest := request.UserUpdateRequest{}
+	var resp response.WebResponse
+
 	if err := ctx.ShouldBindJSON(&updateUserRequest); err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Campos inválidos",
-			Errors:  helper.TranslateError(err, u.trans),
-		}
+		resp = helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Campos inválidos", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
 	if err := u.Validate.Struct(updateUserRequest); err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Bad request",
-			Errors:  helper.TranslateError(err, u.trans),
-		}
+		resp = helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Bad request", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
@@ -178,36 +122,22 @@ func (u *UserController) Update(ctx *gin.Context) {
 	id, err := strconv.Atoi(userId)
 
 	if err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusBadRequest,
-			Status:  "Error",
-			Data:    nil,
-			Message: "Invalid user ID",
-		}
+		resp = helper.WebResponseFormatter(http.StatusBadRequest, "Error", nil, "Invalid user ID", helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusBadRequest, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
 	err = u.userService.Update(updateUserRequest, uint(id))
 
 	if err != nil {
-		resp := response.WebResponse{
-			Code:    http.StatusNotFound,
-			Status:  "Error",
-			Data:    nil,
-			Message: err.Error(),
-		}
+		resp = helper.WebResponseFormatter(http.StatusNotFound, "Error", nil, err.Error(), helper.TranslateError(err, u.trans))
 		ctx.Header("Content-Type", "application/json")
-		ctx.JSON(http.StatusNotFound, resp)
+		ctx.JSON(resp.Code, resp)
 		return
 	}
 
-	resp := response.WebResponse{
-		Code:   http.StatusOK,
-		Status: "Ok",
-		Data:   nil,
-	}
+	resp = helper.WebResponseFormatter(http.StatusOK, "Ok", nil, "", helper.TranslateError(err, u.trans))
 	ctx.Header("Content-Type", "application/json")
-	ctx.JSON(http.StatusOK, resp)
+	ctx.JSON(resp.Code, resp)
 }
